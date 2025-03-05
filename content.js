@@ -15,49 +15,71 @@ const MODELS = [
         value: 'gemini-1.5-flash-8b',
         name: 'Gemini 1.5 Flash 8B'
     }
-];// New mutation observer approach
-
-
-
-
+];
 
     function initExtension() {
         // Only run on video pages
-        if (!window.location.href.includes("/watch")) return;
 
-        let observerDisconnected = false; // Moved to correct scope
+        // let observerDisconnected = false; // Moved to correct scope
 
-        const observer = new MutationObserver((mutations, obs) => {
-            if (observerDisconnected) return;
-            
-            const videoContainer = document.querySelector('#secondary');
+        // const observer = new MutationObserver((mutations, obs) => {
+        //     if (observerDisconnected) return;
+
+        //     const videoContainer = document.getElementById('secondary');
+        //     if (videoContainer && !document.getElementById('summarizer-container')) {
+        //         console.log('Injecting UI into secondary panel');
+        //         injectUI(videoContainer);
+        //         obs.disconnect();
+        //         observerDisconnected = true;
+        //         console.log('Observer disconnected');
+        //     }
+        // });
+
+        // // Start observing the entire document
+        // observer.observe(document, {
+        //     childList: true,
+        //     subtree: true
+        // });
+
+        // Polling interval to check for video container
+        let intervalId = setInterval(() => {
+            const videoContainer = document.getElementById('secondary-inner');
             if (videoContainer && !document.getElementById('summarizer-container')) {
-                console.log('Injecting UI into secondary panel');
+                console.log('Injecting UI into secondary panel using interval');
                 injectUI(videoContainer);
-                obs.disconnect();
-                observerDisconnected = true;
-                console.log('Observer disconnected');
+                clearInterval(intervalId); // Stop interval after injection
             }
-        });
-
-        // Start observing the entire document
-        observer.observe(document, {
-            childList: true,
-            subtree: true
-        });
+        }, 100); // Check every 100ms
 
         // Initial check in case elements already exist
         setTimeout(() => {
-            if (!observerDisconnected) {
-                const videoContainer = document.querySelector('#secondary');
+            // if (!observerDisconnected) {
+                const videoContainer = document.getElementById('secondary-inner');
                 if (videoContainer && !document.getElementById('summarizer-container')) {
                     console.log('Initial injection attempt');
                     injectUI(videoContainer);
-                    observer.disconnect();
-                    observerDisconnected = true;
+                    clearInterval(intervalId); // Stop interval if injected in initial check
+                    // observer.disconnect();
+                    // observerDisconnected = true;
                 }
-            }
+            // }
         }, 1000);
+    }
+
+    function callInjectUI(){
+        initExtension()
+    }
+
+    function removeInjectUI(){
+        let startTime = Date.now();
+        let intervalId = setInterval(() => {
+            let container = document.getElementById('summarizer-container');
+            if (container) {
+                container.remove();
+                clearInterval(intervalId); // Stop interval once removed
+            }
+        }, 100)
+        setTimeout(()=>{clearInterval(intervalId)}, 5000)
     }
 
     // Modified injectUI function
@@ -88,7 +110,7 @@ const MODELS = [
         const header = document.createElement('div');
         header.style.cssText = `
             display: flex;
-            align-items: center;
+            align-secondary: center;
             justify-content: center;
             position: relative;
             width: 100%;
@@ -97,7 +119,31 @@ const MODELS = [
             margin-bottom: 5px;
             `;
 
-        const title = document.createElement('p');
+        // Info Button
+        const infoButton = document.createElement('button');
+        infoButton.textContent = 'i';
+        infoButton.style.cssText = `
+            padding: 6px 12px;
+            border: 1px solid #666;
+            border-radius: 20px;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: absolute;
+            left: 0;
+            top: 0;
+            line-height: 1;
+            margin: 0;
+            &:hover {
+                background-color: rgba(255, 255, 255, 0.15);
+                border-color: #888;
+            }
+        `;
+        infoButton.onclick = showInfoModal;
+
+        const title = document.createElement('h1');
         title.textContent = 'Gemmery';
         title.style.cssText = `
             color: #3da6ff;
@@ -133,6 +179,7 @@ const MODELS = [
         `;
         settingsButton.onclick = showSettingsModal;
 
+        header.appendChild(infoButton);
         header.appendChild(title);
         header.appendChild(settingsButton);
         container.appendChild(header);
@@ -344,8 +391,11 @@ const MODELS = [
                 <button id="delete-api-key" style="flex:1;">Delete Key</button>
             </div>
             <div style="text-align: center;">
-                <a href="#" id="show-api-key-guide" style="color: #3da6ff; text-decoration: none; font-size: 12px;">
-                    How to get API key?
+                <a href="https://youtu.be/Gl2Y3OmsMuM" target="_blank" style="color: #3da6ff; text-decoration: none; font-size: 12px;">
+                    How to get Gemini API key?
+                </a>
+                <a href="https://youtu.be/XwNnV1gi99o" target="_blank" style="color: #3da6ff; text-decoration: none; font-size: 12px;">
+                    How to check usage?
                 </a>
             </div>
         `;
@@ -370,10 +420,10 @@ const MODELS = [
 
         document.body.appendChild(settingsModal);
 
-        // API Key Guide Modal
-        const guideModal = document.createElement('div');
-        guideModal.id = 'api-key-guide-modal';
-        guideModal.style.cssText = `
+        // Info Modal
+        const infoModal = document.createElement('div');
+        infoModal.id = 'info-modal';
+        infoModal.style.cssText = `
             display: none;
             position: fixed;
             top: 50%;
@@ -384,28 +434,21 @@ const MODELS = [
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
             z-index: 1002;
-            width: 300px;
+            width: 400px;
             color: white;
+            text-align: center;
         `;
-        
-        guideModal.innerHTML = `
-            <h3 style="margin: 0 0 15px 0;">How to get API Key</h3>
-            <ol style="padding-left: 20px; margin: 0;">
-                <li style="margin-bottom: 10px;">Go to: <a href="https://aistudio.google.com/apikey" target="_blank" style="color: #3da6ff;">https://aistudio.google.com/apikey</a></li>
-                <li style="margin-bottom: 10px;">Login to your Google account</li>
-                <li style="margin-bottom: 10px;">Create an API key</li>
-                <li>Copy and paste here</li>
-            </ol>
-            <button id="close-guide-modal" 
-                style="margin-top: 15px; padding: 8px 16px; 
-                       background-color: #3da6ff; border: none; 
-                       border-radius: 4px; color: white; cursor: pointer;
-                       display: block; margin: 15px auto 0;">
-                Close
-            </button>
+        infoModal.innerHTML = `
+            <h1 style="margin-top: 0;">Why Gemini?</h1>
+            <div style="margin-bottom: 20px;">
+                <p>Because Gemini is the only provider of a free tier for APIs.</p><p>Also, it is the best in terms of context length.</p> 
+                <p>With the introduction of the Gemini 2.0 series of models, they have really raised the bar to match the top models in all areas.</p> 
+                <p>They offer such a generous free tier that you never feel limited. Moreover, it resets every day.</p> 
+                <p>So enjoy your free summaries with Gemmery.</p><p> If you want to support us in creating more tools like this, donate <a href="">here</a>.
+            </div>
+            <button id="close-info-modal" style="padding: 10px 15px; border: none; border-radius: 5px; background-color: #555; color: white; cursor: pointer;">Close</button>
         `;
-        
-        document.body.appendChild(guideModal);
+        document.body.appendChild(infoModal);
 
         containerElement.insertBefore(container, containerElement.firstChild);
         
@@ -433,7 +476,7 @@ const MODELS = [
             if (response.prompts?.length > 0) {
                 response.prompts.forEach(prompt => {
                     const div = document.createElement('div');
-                    div.style.cssText = `display: flex; justify-content: space-between; align-items: center; padding: 5px 0;`;
+                    div.style.cssText = `display: flex; justify-content: space-between; align-secondary: center; padding: 5px 0;`;
                     
                     div.innerHTML = `
                         <span>${prompt.name}</span>
@@ -527,6 +570,10 @@ const MODELS = [
                 operation: 'set',
                 key: 'geminiApiKey',
                 value: apiKey
+            }, response => {
+                if (response.success) {
+                    alert('API key saved successfully!');
+                }
             });
         }
         
@@ -551,6 +598,10 @@ const MODELS = [
         }
         if (event.target.id === 'close-guide-modal') {
             document.getElementById('api-key-guide-modal').style.display = 'none';
+        }
+
+        if (event.target.id === 'close-info-modal') {
+            document.getElementById('info-modal').style.display = 'none';
         }
     });
 
@@ -709,9 +760,10 @@ const MODELS = [
         }
     }
 
-    // Initialize when content script loads
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initExtension);
-    } else {
-        initExtension();
+    // New function to show info modal
+    function showInfoModal() {
+        const modal = document.getElementById('info-modal');
+        modal.style.display = 'block';
     }
+
+ 

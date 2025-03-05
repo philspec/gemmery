@@ -106,6 +106,31 @@ chrome.runtime.onMessage.addListener(
     }
 );
 
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab)=> {
+    if (tab.url && tab.url.includes("youtube") && tab.url.includes("/watch")){
+        console.log("injecting ui");
+        chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            function: () => {
+                callInjectUI();
+            }
+        });
+    }
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) =>{
+    if (tab.url && tab.url.includes("youtube") && !tab.url.includes("/watch")){
+        console.log("removing ui");
+        chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            function: () => {
+                removeInjectUI();
+            }
+        });
+    }
+});
+
+
 // Add extension reload handler
 chrome.runtime.onSuspend.addListener(() => {
     chrome.tabs.query({}, tabs => {

@@ -15,16 +15,15 @@
       "scripting",
       "tabs"
     ],
+   "host_permissions": [
+    "*://*.youtube.com/*"
+  ],
     "background": {
       "service_worker": "background.js"
     },
     "content_scripts": [
       {
-        "matches": [
-          "https://www.youtube.com/*",
-          "https://m.youtube.com/*",
-          "http://www.youtube.com/*"
-        ],
+        "matches": ["*://*.youtube.com/*"],
         "js": ["content.js"],
         "css": ["style.css"],
         "run_at": "document_end"
