@@ -14,11 +14,19 @@ chrome.runtime.onMessage.addListener(
                             chrome.tabs.sendMessage(newTab.id, {
                                 action: 'updateSummary',
                                 summary: summary
+                            }, function(response) {
+                                if (chrome.runtime.lastError) {
+                                    console.warn("Failed to send updateSummary message to tab:", newTab.id, chrome.runtime.lastError.message);
+                                }
                             });
                         } catch (error) {
                             chrome.tabs.sendMessage(newTab.id, {
                                 action: 'updateSummary',
                                 error: error.message
+                            }, function(response) {
+                                if (chrome.runtime.lastError) {
+                                    console.warn("Failed to send updateSummary message to tab:", newTab.id, chrome.runtime.lastError.message);
+                                }
                             });
                         }
                     });
@@ -57,12 +65,20 @@ chrome.runtime.onMessage.addListener(
                                 chrome.tabs.sendMessage(tab.id, {
                                     action: 'updateSummary',
                                     summary: summary
+                                }, function(response) {
+                                    if (chrome.runtime.lastError) {
+                                        console.warn("Failed to send updateSummary message to tab:", tab.id, chrome.runtime.lastError.message);
+                                    }
                                 });
                             })
                             .catch(error => {
                                 chrome.tabs.sendMessage(tab.id, {
                                     action: 'updateSummary',
                                     error: error.message
+                                }, function(response) {
+                                    if (chrome.runtime.lastError) {
+                                        console.warn("Failed to send updateSummary message to tab:", tab.id, chrome.runtime.lastError.message);
+                                    }
                                 });
                             });
                     }
