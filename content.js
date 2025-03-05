@@ -365,6 +365,7 @@ const MODELS = [
                 <a href="https://youtu.be/Gl2Y3OmsMuM" target="_blank" style="color: #3da6ff; text-decoration: none; font-size: 12px;">
                     How to get Gemini API key?
                 </a>
+                </br>
                 <a href="https://youtu.be/XwNnV1gi99o" target="_blank" style="color: #3da6ff; text-decoration: none; font-size: 12px;">
                     How to check usage?
                 </a>
@@ -415,7 +416,7 @@ const MODELS = [
                 <p>Because Gemini is the only provider of a free tier for APIs.</p><p>Also, it is the best in terms of context length.</p> 
                 <p>With the introduction of the Gemini 2.0 series of models, they have really raised the bar to match the top models in all areas.</p> 
                 <p>They offer such a generous free tier that you never feel limited. Moreover, it resets every day.</p> 
-                <p>So enjoy your free summaries with Gemmery.</p><p> If you want to support us in creating more tools like this, donate <a href="">here</a>.
+                <p>So enjoy your free summaries with Gemmery.</p><p> If you want to support us in creating more tools like this, donate <a href="" style="color: #fcf008;">here</a>.</p>
             </div>
             <button id="close-info-modal" style="padding: 10px 15px; border: none; border-radius: 5px; background-color: #555; color: white; cursor: pointer;">Close</button>
         `;
@@ -512,7 +513,7 @@ const MODELS = [
         chrome.runtime.sendMessage({action: 'getStorageData'}, response => {
             const promptSelect = document.getElementById('saved-prompts');
             promptSelect.innerHTML = '<option value="">Select a saved prompt</option>';
-            
+            response.prompts.push({name: 'Default', content: "Summarize the transcript concisely and arrange with titles and subtitles."});
             if (response.prompts?.length > 0) {
                 response.prompts.forEach(prompt => {
                     const option = document.createElement('option');
@@ -612,7 +613,7 @@ const MODELS = [
         }
         
         console.warn('Gemmery logs: No transcript segments found after expansion');
-        return null;
+        return null; // Indicate no transcript found
     }
 
     function waitForElement(selector, timeout = 5000) {
@@ -703,6 +704,48 @@ const MODELS = [
             return;
         }
 
+        // Check if a custom prompt is entered
+        const customPrompt = document.getElementById('prompt-input').value.trim();
+        if (!customPrompt) {
+            // Create custom alert modal for no prompt
+            const alertModal = document.createElement('div');
+            alertModal.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: #282828;
+                padding: 20px;
+                border-radius: 8px;
+                text-align: center;
+                color: white;
+                z-index: 1003;
+                width: 300px;
+            `;
+            alertModal.innerHTML = `
+                <h3 style="margin: 0 0 15px 0;">Prompt Required</h3>
+                <p style="margin-bottom: 15px;">Please enter a custom prompt or select a saved prompt to continue.</p>
+                <div style="margin-top: 20px;">
+                    <button id="close-prompt-alert-modal"
+                        style="padding: 8px 16px; background-color: #3da6ff;
+                               border: none; border-radius: 4px; color: white;
+                               cursor: pointer;">
+                        Close
+                    </button>
+                </div>
+            `;
+
+            // Add modal to DOM
+            document.body.appendChild(alertModal);
+
+            // Add event listeners
+            alertModal.querySelector('#close-prompt-alert-modal').addEventListener('click', () => {
+                alertModal.remove();
+            });
+
+            return; // Stop summarization if no prompt
+        }
+
         isProcessing = true;
         
         try {
@@ -711,7 +754,45 @@ const MODELS = [
             }
 
             const transcript = await getTranscript();
-            if (!transcript) return;
+            if (!transcript) {
+                isProcessing = false; // Ensure flag is reset even on early exit
+                // Create custom alert modal for no transcript
+                const alertModal = document.createElement('div');
+                alertModal.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: #282828;
+                    padding: 20px;
+                    border-radius: 8px;
+                    text-align: center;
+                    color: white;
+                    z-index: 1003;
+                    width: 300px;
+                `;
+                alertModal.innerHTML = `
+                    <h3 style="margin: 0 0 15px 0;">No Transcript Found</h3>
+                    <p style="margin-bottom: 15px;">Sorry, no transcript was found for this video.</p>
+                    <div style="margin-top: 20px;">
+                        <button id="close-transcript-alert-modal"
+                            style="padding: 8px 16px; background-color: #3da6ff;
+                                   border: none; border-radius: 4px; color: white;
+                                   cursor: pointer;">
+                            Close
+                        </button>
+                    </div>
+                `;
+
+                // Add modal to DOM
+                document.body.appendChild(alertModal);
+
+                // Add event listeners
+                alertModal.querySelector('#close-transcript-alert-modal').addEventListener('click', () => {
+                    alertModal.remove();
+                });
+                return; // Stop summarization if no transcript
+            }
 
             sessionStorage.setItem('lastTranscript', transcript);
 
