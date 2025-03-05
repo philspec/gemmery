@@ -17,69 +17,40 @@ const MODELS = [
     }
 ];
 
-    function initExtension() {
-        // Only run on video pages
-
-        // let observerDisconnected = false; // Moved to correct scope
-
-        // const observer = new MutationObserver((mutations, obs) => {
-        //     if (observerDisconnected) return;
-
-        //     const videoContainer = document.getElementById('secondary');
-        //     if (videoContainer && !document.getElementById('summarizer-container')) {
-        //         console.log('Injecting UI into secondary panel');
-        //         injectUI(videoContainer);
-        //         obs.disconnect();
-        //         observerDisconnected = true;
-        //         console.log('Observer disconnected');
-        //     }
-        // });
-
-        // // Start observing the entire document
-        // observer.observe(document, {
-        //     childList: true,
-        //     subtree: true
-        // });
-
-        // Polling interval to check for video container
-        let intervalId = setInterval(() => {
+    function callInjectUI(){
+        let container = document.getElementById('summarizer-container');
+        console.log(" Gemmery logs: Injection trails")
+        if (container) {
+            console.log(" Gemmery logs: UI found. Injection trails stopped")
+            if(intervalId1) clearInterval(intervalId1)
+            return;
+        }
+        let intervalId1 = setInterval(() => {
             const videoContainer = document.getElementById('secondary-inner');
             if (videoContainer && !document.getElementById('summarizer-container')) {
-                console.log('Injecting UI into secondary panel using interval');
+                console.log('Gemmery logs: Injecting UI');
                 injectUI(videoContainer);
-                clearInterval(intervalId); // Stop interval after injection
+                clearInterval(intervalId1);
+                console.log(" Gemmery logs: UI injected") 
             }
-        }, 100); // Check every 100ms
-
-        // Initial check in case elements already exist
-        setTimeout(() => {
-            // if (!observerDisconnected) {
-                const videoContainer = document.getElementById('secondary-inner');
-                if (videoContainer && !document.getElementById('summarizer-container')) {
-                    console.log('Initial injection attempt');
-                    injectUI(videoContainer);
-                    clearInterval(intervalId); // Stop interval if injected in initial check
-                    // observer.disconnect();
-                    // observerDisconnected = true;
-                }
-            // }
-        }, 1000);
-    }
-
-    function callInjectUI(){
-        initExtension()
+        }, 500); // Check every 100ms
+        setTimeout(()=>{clearInterval(intervalId1);console.log(" Gemmery logs: UI injection trails timedout")}, 5000)
     }
 
     function removeInjectUI(){
-        let startTime = Date.now();
-        let intervalId = setInterval(() => {
-            let container = document.getElementById('summarizer-container');
-            if (container) {
-                container.remove();
-                clearInterval(intervalId); // Stop interval once removed
-            }
-        }, 100)
-        setTimeout(()=>{clearInterval(intervalId)}, 5000)
+        let container = document.getElementById('summarizer-container');
+        console.log(" Gemmery logs: removal trails")
+        if (!container) {
+            console.log(" Gemmery logs: UI not found. Removal trails stopped")
+            if(intervalId2) clearInterval(intervalId2)
+            return;
+        }
+        let intervalId2 = setInterval(() => {
+            container.remove();
+            clearInterval(intervalId2);
+            console.log(" Gemmery logs: UI removed") // Stop interval once removed
+        }, 500)
+        setTimeout(()=>{clearInterval(intervalId2);console.log(" Gemmery logs: UI removal trails timedout")}, 5000)
     }
 
     // Modified injectUI function
@@ -626,22 +597,21 @@ const MODELS = [
                 await new Promise(resolve => setTimeout(resolve, 1500));
             }
         } catch (error) {
-            console.warn('Could not find transcript tab:', error);
+            console.warn('Gemmery logs: Could not find transcript tab:', error);
         }
 
         // Wait for panels to load
         await waitForElement('#panels', 10000); // 10 second timeout
 
         const existingSegments = document.querySelectorAll('ytd-transcript-segment-renderer');
-        console.log('Found transcript segments:', existingSegments.length);
+        console.log('Gemmery logs: Found transcript segments:', existingSegments.length);
         
         if (existingSegments.length > 0) {
             const transcript = extractTranscriptText(existingSegments);
-            console.log('Extracted Transcript:\n', transcript);
             return transcript;
         }
         
-        console.warn('No transcript segments found after expansion');
+        console.warn('Gemmery logs: No transcript segments found after expansion');
         return null;
     }
 
@@ -753,7 +723,7 @@ const MODELS = [
             });
             
         } catch (error) {
-            console.error('Summary failed:', error);
+            console.error('Gemmery logs: Summary failed:', error);
             alert(`Error: ${error.message}\n\nCheck console for details`);
         } finally {
             isProcessing = false;
