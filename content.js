@@ -647,42 +647,159 @@ const MODELS = [
     // Handle the button click
     async function handleSummarizeClick() {
         if (isProcessing) return;
+        
+        // Get selected model
+        const modelSelect = document.getElementById('model-select');
+        const selectedModel = modelSelect.value;
+
+        // Check for API key
+        const { geminiApiKey } = await chrome.storage.sync.get('geminiApiKey');
+        if (!geminiApiKey) {
+            // Create custom alert modal
+            const alertModal = document.createElement('div');
+            alertModal.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: #282828;
+                padding: 20px;
+                border-radius: 8px;
+                text-align: center;
+                color: white;
+                z-index: 1003;
+                width: 300px;
+            `;
+            alertModal.innerHTML = `
+                <h3 style="margin: 0 0 15px 0;">API Key Required</h3>
+                <p style="margin-bottom: 15px;">Please set your Gemini API key to continue.</p>
+                <a href="#" id="show-guide-from-alert" 
+                   style="color: #3da6ff; text-decoration: none; font-size: 14px;">
+                    Where to get API key?
+                </a>
+                <div style="margin-top: 20px;">
+                    <button id="close-alert-modal" 
+                        style="padding: 8px 16px; background-color: #3da6ff; 
+                               border: none; border-radius: 4px; color: white; 
+                               cursor: pointer;">
+                        Close
+                    </button>
+                </div>
+            `;
+            
+            // Add modal to DOM
+            document.body.appendChild(alertModal);
+
+            // Add event listeners
+            alertModal.querySelector('#show-guide-from-alert').addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('api-key-guide-modal').style.display = 'block';
+                alertModal.remove();
+            });
+
+            alertModal.querySelector('#close-alert-modal').addEventListener('click', () => {
+                alertModal.remove();
+            });
+
+            return;
+        }
+
+        // Check if a custom prompt is entered
+        const customPrompt = document.getElementById('prompt-input').value.trim();
+        if (!customPrompt) {
+            // Create custom alert modal for no prompt
+            const alertModal = document.createElement('div');
+            alertModal.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: #282828;
+                padding: 20px;
+                border-radius: 8px;
+                text-align: center;
+                color: white;
+                z-index: 1003;
+                width: 300px;
+            `;
+            alertModal.innerHTML = `
+                <h3 style="margin: 0 0 15px 0;">Prompt Required</h3>
+                <p style="margin-bottom: 15px;">Please enter a custom prompt or select a saved prompt to continue.</p>
+                <div style="margin-top: 20px;">
+                    <button id="close-prompt-alert-modal"
+                        style="padding: 8px 16px; background-color: #3da6ff;
+                               border: none; border-radius: 4px; color: white;
+                               cursor: pointer;">
+                        Close
+                    </button>
+                </div>
+            `;
+
+            // Add modal to DOM
+            document.body.appendChild(alertModal);
+
+            // Add event listeners
+            alertModal.querySelector('#close-prompt-alert-modal').addEventListener('click', () => {
+                alertModal.remove();
+            });
+
+            return; // Stop summarization if no prompt
+        }
+
         isProcessing = true;
         
         try {
-            // Get selected model
-            const modelSelect = document.getElementById('model-select');
-            const selectedModel = modelSelect.value;
-            
-            // Get API key
-            const { geminiApiKey } = await chrome.storage.sync.get('geminiApiKey');
-            if (!geminiApiKey) {
-                showApiKeyAlert();
-                return;
+            if (!chrome.runtime?.id) {
+                throw new Error('Extension updated - please reload this page');
             }
 
-            // Get custom prompt
-            const customPrompt = document.getElementById('prompt-input').value.trim();
-            if (!customPrompt) {
-                showPromptAlert();
-                return;
-            }
-
-            // Get transcript
             const transcript = await getTranscript();
             if (!transcript) {
-                showTranscriptAlert();
-                return;
+                isProcessing = false; // Ensure flag is reset even on early exit
+                // Create custom alert modal for no transcript
+                const alertModal = document.createElement('div');
+                alertModal.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: #282828;
+                    padding: 20px;
+                    border-radius: 8px;
+                    text-align: center;
+                    color: white;
+                    z-index: 1003;
+                    width: 300px;
+                `;
+                alertModal.innerHTML = `
+                    <h3 style="margin: 0 0 15px 0;">No Transcript Found</h3>
+                    <p style="margin-bottom: 15px;">Sorry, no transcript was found for this video.</p>
+                    <div style="margin-top: 20px;">
+                        <button id="close-transcript-alert-modal"
+                            style="padding: 8px 16px; background-color: #3da6ff;
+                                   border: none; border-radius: 4px; color: white;
+                                   cursor: pointer;">
+                            Close
+                        </button>
+                    </div>
+                `;
+
+                // Add modal to DOM
+                document.body.appendChild(alertModal);
+
+                // Add event listeners
+                alertModal.querySelector('#close-transcript-alert-modal').addEventListener('click', () => {
+                    alertModal.remove();
+                });
+                return; // Stop summarization if no transcript
             }
 
-            // Store transcript in session storage (for recovery if needed)
             sessionStorage.setItem('lastTranscript', transcript);
 
-            // Send message to create new summary tab
             chrome.runtime.sendMessage({
                 action: "openSummaryTab",
                 transcript: transcript,
-                customPrompt: customPrompt,
+                customPrompt: document.getElementById('prompt-input').value,
                 model: selectedModel
             });
             
@@ -698,18 +815,6 @@ const MODELS = [
     function showInfoModal() {
         const modal = document.getElementById('info-modal');
         modal.style.display = 'block';
-    }
-
-    function showApiKeyAlert() {
-        // Implementation of showApiKeyAlert function
-    }
-
-    function showPromptAlert() {
-        // Implementation of showPromptAlert function
-    }
-
-    function showTranscriptAlert() {
-        // Implementation of showTranscriptAlert function
     }
 
  
