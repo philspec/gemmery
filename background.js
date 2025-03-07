@@ -1,131 +1,115 @@
 let activeTabId = null;
-let summaryTabs = new Map(); // Using Map to store tab-specific data
+let summaryTabs = [];
 
-// Single message listener for all summary-related actions
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "openSummaryTab") {
-        if (!chrome.runtime?.id) {
-            throw new Error('Extension context lost');
+chrome.runtime.onMessage.addListener(
+    (request, sender, sendResponse) => {
+        if (request.action === 'summarize') {
+            // Handle the summarization request
+            const model = request.model || 'gemini-2.0-flash-lite-preview-02-05';
+            summarizeTranscript(request.transcript, request.customPrompt, model)
+                .then(summary => {
+                    // Create new tab and send summary
+                    chrome.tabs.create({ url: 'summary.html' }, async (newTab) => {
+                        try {
+                            const summary = await summarizeTranscript(request.transcript, request.customPrompt, model);
+                            chrome.tabs.sendMessage(newTab.id, {
+                                action: 'updateSummary',
+                                summary: summary
+                            }, function(response) {
+                                if (chrome.runtime.lastError) {
+                                    console.warn("Failed to send updateSummary message to tab:", newTab.id, chrome.runtime.lastError.message);
+                                }
+                            });
+                        } catch (error) {
+                            chrome.tabs.sendMessage(newTab.id, {
+                                action: 'updateSummary',
+                                error: error.message
+                            }, function(response) {
+                                if (chrome.runtime.lastError) {
+                                    console.warn("Failed to send updateSummary message to tab:", newTab.id, chrome.runtime.lastError.message);
+                                }
+                            });
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Summarization failed:', error);
+                    chrome.tabs.create({ url: 'error.html' });
+                });
+            
+            return true; // Keep message channel open
         }
-        
-        // Create a new summary tab
-        chrome.tabs.create({
-            url: chrome.runtime.getURL("summary.html"),
-            active: true
-        }, (newTab) => {
-            const summaryTabId = newTab.id;
+        if (request.action === "openSummaryTab") {
+            if (!chrome.runtime?.id) throw new Error('Extension context lost');
             
-            // Store tab data
-            summaryTabs.set(summaryTabId, {
-                transcript: request.transcript,
-                customPrompt: request.customPrompt,
-                model: request.model,
-                processed: false
-            });
-            
-            // Create a one-time listener for this specific tab
-            const tabListener = (tabId, changeInfo) => {
-                if (tabId === summaryTabId && changeInfo.status === 'complete') {
-                    // Remove listener after completion
-                    chrome.tabs.onUpdated.removeListener(tabListener);
-                    
-                    const tabData = summaryTabs.get(summaryTabId);
-                    if (tabData && !tabData.processed) {
-                        tabData.processed = true;
-                        summaryTabs.set(summaryTabId, tabData);
+            // Create a new summary tab
+            chrome.tabs.create({
+                url: chrome.runtime.getURL("summary.html"),
+                active: true
+            }, (tab) => {
+                const summaryTabId = tab.id;
+                summaryTabs.push(summaryTabId);
+                
+                function tabUpdatedListener(tabId, changeInfo) {
+                    if (tabId === summaryTabId && changeInfo.status === 'complete') {
+                        chrome.tabs.onUpdated.removeListener(tabUpdatedListener);
                         
-                        // Process summary
-                        summarizeTranscript(tabData.transcript, tabData.customPrompt, tabData.model)
+                        // Handle the actual summarization
+                        summarizeTranscript(request.transcript, request.customPrompt, request.model)
                             .then(summary => {
                                 chrome.tabs.sendMessage(summaryTabId, {
                                     action: 'updateSummary',
                                     summary: summary
+                                }, function(response) {
+                                    if (chrome.runtime.lastError) {
+                                        console.warn("Failed to send updateSummary message to tab:", summaryTabId, chrome.runtime.lastError.message);
+                                    }
                                 });
                             })
                             .catch(error => {
                                 chrome.tabs.sendMessage(summaryTabId, {
                                     action: 'updateSummary',
                                     error: error.message
+                                }, function(response) {
+                                    if (chrome.runtime.lastError) {
+                                        console.warn("Failed to send updateSummary message to tab:", summaryTabId, chrome.runtime.lastError.message);
+                                    }
                                 });
                             });
                     }
                 }
-            };
-            
-            // Add the tab-specific listener
-            chrome.tabs.onUpdated.addListener(tabListener);
-        });
-        
-        return true;
-    }
-    if (request.action === 'summarize') {
-        // Handle the summarization request
-        const model = request.model || 'gemini-2.0-flash-lite-preview-02-05';
-        summarizeTranscript(request.transcript, request.customPrompt, model)
-            .then(summary => {
-                // Create new tab and send summary
-                chrome.tabs.create({ url: 'summary.html' }, async (newTab) => {
-                    try {
-                        const summary = await summarizeTranscript(request.transcript, request.customPrompt, model);
-                        chrome.tabs.sendMessage(newTab.id, {
-                            action: 'updateSummary',
-                            summary: summary
-                        }, function(response) {
-                            if (chrome.runtime.lastError) {
-                                console.warn("Failed to send updateSummary message to tab:", newTab.id, chrome.runtime.lastError.message);
-                            }
-                        });
-                    } catch (error) {
-                        chrome.tabs.sendMessage(newTab.id, {
-                            action: 'updateSummary',
-                            error: error.message
-                        }, function(response) {
-                            if (chrome.runtime.lastError) {
-                                console.warn("Failed to send updateSummary message to tab:", newTab.id, chrome.runtime.lastError.message);
-                            }
-                        });
-                    }
-                });
-            })
-            .catch(error => {
-                console.error('Summarization failed:', error);
-                chrome.tabs.create({ url: 'error.html' });
+                
+                chrome.tabs.onUpdated.addListener(tabUpdatedListener);
             });
-        
-        return true; // Keep message channel open
-    }
-    if (request.action === 'manageStorage') {
-        // Handle prompt deletion differently
-        if (request.operation === 'deletePrompt') {
-            manageStorage('deletePrompt', null, request.value)
-                .then(() => sendResponse({ success: true }))
-                .catch(error => sendResponse({ success: false, error }));
-        } else {
-            manageStorage(request.operation, request.key, request.value)
-                .then(() => sendResponse({ success: true }))
-                .catch(error => sendResponse({ success: false, error }));
+            
+            return true; // Indicate we'll respond asynchronously
         }
-        return true;
+        if (request.action === 'manageStorage') {
+            // Handle prompt deletion differently
+            if (request.operation === 'deletePrompt') {
+                manageStorage('deletePrompt', null, request.value)
+                    .then(() => sendResponse({ success: true }))
+                    .catch(error => sendResponse({ success: false, error }));
+            } else {
+                manageStorage(request.operation, request.key, request.value)
+                    .then(() => sendResponse({ success: true }))
+                    .catch(error => sendResponse({ success: false, error }));
+            }
+            return true;
+        }
+        if (request.action === 'getStorageData') {
+            // Return all saved prompts with array validation
+            chrome.storage.sync.get(['savedPrompts', 'geminiApiKey'])
+                .then(data => sendResponse({ 
+                    success: true, 
+                    prompts: Array.isArray(data.savedPrompts) ? data.savedPrompts : [],
+                    apiKey: data.geminiApiKey || '' 
+                }))
+                .catch(error => sendResponse({ success: false, error }));
+            return true;
+        }
     }
-    if (request.action === 'getStorageData') {
-        // Return all saved prompts with array validation
-        chrome.storage.sync.get(['savedPrompts', 'geminiApiKey'])
-            .then(data => sendResponse({ 
-                success: true, 
-                prompts: Array.isArray(data.savedPrompts) ? data.savedPrompts : [],
-                apiKey: data.geminiApiKey || '' 
-            }))
-            .catch(error => sendResponse({ success: false, error }));
-        return true;
-    }
-});
-
-// Clean up closed tabs
-chrome.tabs.onRemoved.addListener((tabId) => {
-    if (summaryTabs.has(tabId)) {
-        summaryTabs.delete(tabId);
-    }
-});
+);
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab)=> {
     if (tab.url && tab.url.includes("youtube") && tab.url.includes("/watch")){
@@ -151,6 +135,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) =>{
     }
 });
 
+
 // Add extension reload handler
 chrome.runtime.onSuspend.addListener(() => {
     chrome.tabs.query({}, tabs => {
@@ -161,6 +146,8 @@ chrome.runtime.onSuspend.addListener(() => {
         });
     });
 });
+
+// ... existing code ...
 
 async function summarizeTranscript(transcript, customPrompt, model) {
     const { savedPrompts = [], geminiApiKey } = await chrome.storage.sync.get(["savedPrompts", "geminiApiKey"]);
@@ -246,3 +233,10 @@ async function manageStorage(action, key, value = null) {
         await chrome.storage.sync.set({ savedPrompts: updatedPrompts });
     }
 }
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+    const index = summaryTabs.indexOf(tabId);
+    if (index > -1) {
+        summaryTabs.splice(index, 1);
+    }
+});
