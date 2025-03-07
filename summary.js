@@ -16,7 +16,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (request.error) {
                 document.body.innerHTML = `<h2>Error</h2><p>${request.error}</p>`;
             } else {
-                summaryElement.textContent = request.summary;
+                let summaryText = request.summary;
+                // Find text enclosed in ** and wrap it with bold and larger font-size
+                summaryText = summaryText.replace(/\*\*(.*?)\*\*/g, '<b style="font-size: 1.2em;">$1</b>');
+                summaryElement.innerHTML = summaryText;
                 summaryElement.style.display = 'block';
                 loadingElement.style.display = 'none';
             }
@@ -33,8 +36,3 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, LOAD_TIMEOUT);
 });
-
-function formatSummary(text) {
-    return text.replace(/\n/g, '<br>')
-              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-}
