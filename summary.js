@@ -17,8 +17,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.body.innerHTML = `<h2>Error</h2><p>${request.error}</p>`;
             } else {
                 let summaryText = request.summary;
-                // Find text enclosed in ** and wrap it with bold and larger font-size
-                summaryText = summaryText.replace(/\*\*(.*?)\*\*/g, '<b style="font-size: 1.2em;">$1</b>');
+                summaryText = summaryText.split('\n').map(line => {
+                    if (line.startsWith('# ')) {
+                        const text = line.replace(/^# /, '').trim();
+                        return `<span style="font-size:2.5rem; font-weight: bold;color:rgb(88, 177, 236);">${text}</span>`;
+                    } else if (line.startsWith('#')) {
+                        const text = line.replace(/^#+/, '').trim();
+                        return `<span style="font-size:2rem;font-weight: bold;color:rgb(118, 169, 204);">${text}</span>`;
+                    } else {
+                        return line;
+                    }
+                }).join('\n')
+                summaryText = summaryText.replace(/\*\*(.*?)\*\*/g, '<span style="font-size:1.5rem;font-weight:bold;color:rgb(179, 176, 44);">$1</span>');
                 summaryElement.innerHTML = summaryText;
                 summaryElement.style.display = 'block';
                 loadingElement.style.display = 'none';

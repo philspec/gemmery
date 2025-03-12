@@ -162,8 +162,8 @@ async function summarizeTranscript(transcript, customPrompt, model) {
     const promptsArray = Array.isArray(savedPrompts) ? savedPrompts : [];
     const selectedPrompt = promptsArray.find(p => p.content === customPrompt);
     const mainPrompt = selectedPrompt?.content || customPrompt || defaultPrompt;
-
-    const promptText = `${mainPrompt}\n\n${transcript}`;
+    const format = "format the above response in a nice readable way. If headings needed, adjust their font size appropritately."
+    const promptText = `prompt:${mainPrompt}\ntranscript:${transcript}\nformat:${format}`;
     
     try {
         const apiKey = geminiApiKey;
